@@ -1,80 +1,52 @@
-import { invoke } from "@tauri-apps/api/tauri";
-import { html, ref, signal } from 'lithen-fns'
+import "@melloware/coloris/dist/coloris.css";
+import { html, shell, signal } from 'lithen-fns'
+import { ColorFormat, coloris, init } from '@melloware/coloris'
+import { invoke } from '@tauri-apps/api'
 
-// let greetInputEl: HTMLInputElement | null;
-// let greetMsgEl: HTMLElement | null;
+init()
 
-// async function greet() {
-//   if (greetMsgEl && greetInputEl) {
-//     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-//     greetMsgEl.textContent = await invoke("greet", {
-//       name: greetInputEl.value,
-//     });
-//   }
-// }
+const colorsList = signal<Array<number[]>>([])
 
-// window.addEventListener("DOMContentLoaded", () => {
-//   greetInputEl = document.querySelector("#greet-input");
-//   greetMsgEl = document.querySelector("#greet-msg");
-//   document.querySelector("#greet-form")?.addEventListener("submit", (e) => {
-//     e.preventDefault();
-//     greet();
-//   });
-// });
+const colorisConfig = {
+  el: '#colorPicker',
+  alpha: true,
+  format: 'rgb' as ColorFormat,
+  inline: true,
+
+  onChange(color: string) {
+    console.log('chegou aqui')
+    const [r, g, b] = color
+      .replace(/[^\d,]+/g, '')
+      .split(',')
+      .map(Number)
+
+    invoke<Array<number[]>>('generate_colors', {
+      r,
+      g,
+      b,
+      a: 1
+    })
+      .then(colors => colorsList.set(colors))
+  }
+}
+
+coloris(colorisConfig)
 
 function content() {
-  const greetMsg = signal('')
-  const inputRef = ref<HTMLInputElement>()
-
-  async function greet() {
-    const inputValue = inputRef.el?.value
-
-    if (inputValue) {
-      const greeting = await invoke<string>('greet', {
-        name: inputValue
-      })
-
-      greetMsg.set(greeting)
-    }
-  }
-
-  function onSubmit(e: Event) {
-    e.preventDefault()
-    greet()
-  }
-
   return html`
     <div class="container">
-      <h1>Welcome to Tauri!</h1>
+      ${shell(colorsList, value => {
+        return value.map(item => {
+          const isDark = item.some(n => n <= 80)
+          const fontColor = isDark && 'color: #ddd'
 
-      <div class="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/src/assets/vite.svg" class="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img
-            src="/src/assets/tauri.svg"
-            class="logo tauri"
-            alt="Tauri logo"
-          />
-        </a>
-        <a href="https://www.typescriptlang.org/docs" target="_blank">
-          <img
-            src="/src/assets/typescript.svg"
-            class="logo typescript"
-            alt="typescript logo"
-          />
-        </a>
-      </div>
-
-      <p>Click on the Tauri logo to learn more about the framework</p>
-
-      <form class="row" on-submit=${onSubmit}>
-        <input ref=${inputRef} placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-
-      <p>${greetMsg}</p>
+          return html`
+            <div style="padding: 20px; background-color: rgb(${item.join(', ')}); ${fontColor}">
+              RGB (${item.join(', ')})
+            </div>
+          `
+        })
+      })}
     </div>
   `
 }
